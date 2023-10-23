@@ -1,53 +1,67 @@
-const http= require('http');
+const http=require('http')
 const fs=require('fs')
 
-const pagesMapper={
-    '/':`<h1>You\`re on the main page</h1>
-            <a href="/form">
-            <button>
-                Go to about page
-            </button>
-            </a>`,
-    '/form':`<h1>You\`re on the about page</h1>
-      <form action="/form" method="POST">
-        <input name="name" placeholder="Enter your name"/>
-       <button type="submit">
-            submit
-        </button>
-      </form> 
-       `,
-}
-
-
-const server=http.createServer( (req,res)=>{
-    if(req.method==='GET'){
-        res.setHeader('Content-Type','text/html')
-        res.write('<html>')
-        res.write('<head><title>My first page</title></head>')
-        res.write(`<body>${pagesMapper[req.url]}</body>`)
-        res.write('</html>')
-        return res.end()
+const app=http.createServer( (req,res)=>{
+    if(req.url==='/'){
+        res.write(
+            `<html>
+                        <head>
+                            <title>Dummy Page</title>  
+                         </head>
+                        <body>
+                            <h1>Hello world!</h1>
+                            <a href="/users"><button>FORM</button></a>
+                        </body>
+                   </html>`)
+        res.end()
     }
-    if(req.method==="POST"){
-        const body=[];
+    if(req.url==='/users'){
+        const users= fs.readFileSync('./users.txt').toString();
+        const usersObj= users.split('\n').map(user=>({name:user.split('&')[0],password:user.split('&')[1]}))
+        console.log(usersObj)
+        res.write(
+            `<html>
+                        <head>
+                            <title>Dummy Page</title>  
+                         </head>
+                        <body>
+                            <h1>Users</h1>
+                            <ul>
+                                <li>User1</li>
+                                <li>User2</li>
+                                <li>User3</li>
+                                <li>User4</li> 
+                                <form action="/create-user" method="post">
+                                    <label for="name">Name</label>
+                                    <input name="name" id="name">
+                                     <label for="password">Password</label>
+                                    <input name="password" id="password">
+                                    <input type="submit">
+                                </form>            
+                            </ul>
+                        </body>
+                   </html>`)
+        res.end()
+    }
+
+    if(req.url==='/create-user' && req.method==='POST'){
+        console.log('creating')
+        const body=[]
         req.on('data',(chunk)=>{
-            console.log(chunk)
             body.push(chunk)
         })
-        req.on('end',()=>{
-            const parsedBody=Buffer.concat(body).toString()
-            const message=parsedBody.split('=')[1];
-            fs.writeFile('message.txt',message,(err)=>{
-                res.setHeader('Location','/')
-                return res.end()
-            });
+        req.on('end',async ()=>{
+            const parsedBody=Buffer.concat(body).toString();
+            await fs.appendFileSync('users.txt',parsedBody+'\n')
+            res.setHeader('Location','/');
+            res.statusCode=302;
+            res.end()
         })
-        res.statusCode=302;
-        res.setHeader('Location','/')
-        return res.end()
     }
+
 
 })
 
 
-server.listen(3000)
+
+app.listen(3000,'localhost')
